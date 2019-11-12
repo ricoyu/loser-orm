@@ -358,19 +358,11 @@ PurchaseOrderListsVO是普通的POJO或者Entity都可以, 查询结果的字段
 有数据类型不一致的也自动转换
 
 ```java
-@ApiModel("采购订单查询列表结果模型")
 @Data
 public class PurchaseOrderListsVO {
-
     private Long id;
-
-    @ApiModelProperty("订单编号")
     private String orderNo;
-
-    @ApiModelProperty("采购单合同号")
     private String purchaseContractNo;//采购单合同号
-
-    @ApiModelProperty("供应商ID")
     private Long supplierId;//供应商ID
 	......
 }

@@ -400,6 +400,7 @@ public class PurchaseOrderListsVO {
 			-- 如果传了beginDate和endDate, 则生成SQL: AND CLOSE_MONTH BETWEEN :beginDate AND :endDate
 			-- 只传   beginDate, 那么生成SQL: AND CLOSE_MONTH >= :beginDate
 			-- 只传   endDate,   那么生成SQL: AND CLOSE_MONTH <= :endDate
+             -- 都不传的话什么都不生成
 			#between("CLOSE_MONTH", $beginDate, $endDate)
 		]]>
     </sql-query>

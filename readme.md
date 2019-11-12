@@ -1,18 +1,25 @@
 # 核心接口
 
-## 1.com.loserico.orm.dao.EntityOperations
+根据接口隔离原则, 结合使用场景划分为如下几个接口
+
+## 1.EntityOperations
 
 JPA的entity对象的一些简单操作API
 
 * `public <T> void persist(T entity);`
+  插入一条记录
 * `public <T> void persist(List<T> entities);`
+  插入一批记录
 * `public <T> T save(T entity);`
+  插入或者更新记录, 根据主键是否有值判断
 * `public <T> List<T> save(List<T> entities);`
 * ......
 
-## 2.com.loserico.orm.dao.CriteriaOperations
+## 2.CriteriaOperations
 
-当SQL逻辑不那么复杂, 堆EntityOperations来说又有点复杂;)的情况用CriteriaOperations
+一些简单的查询可以通过CriteriaOperations来完成, 毕竟写SQL码字数量也挺多的...
+
+**这个接口操作的都是实体类, 不是任意的POJO**
 
 * 根据属性查找
 
@@ -56,7 +63,7 @@ JPA的entity对象的一些简单操作API
   public <T> List<T> findIsNull(Class<T> entityClass, String propertyName);
   ```
 
-* 检查有对应entity是否存在
+* 检查对应entity是否存在
 
   ```java
   public <T> boolean ifExists(Class<T> entityClass, String propertyName, Object value);
@@ -77,23 +84,113 @@ JPA的entity对象的一些简单操作API
 * 骚操作太多, 不一一列举
   ......
 
-## 3.com.loserico.orm.dao.JPQLOperations
+## 3.SQLOperations
 
-你要愿意写JPQL, 那么这个类就是为你准备的
+**重点总是留到最后**, 在src/main/resources/named-sql目录下添加**XXX.hbm.xml**, 这里面写SQL, 比如:MessageContent.hbm.xml
 
-* 命名JPQL/HQL查询, 不带参数
+下面的SQL示例会根据传入参数不同而生成不同的SQL语句
 
+```xml
+<?xml version="1.0" encoding="UTF-8"?>  
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd" >
+<hibernate-mapping>
+    <sql-query name="queryNeedRetryMsg">
+        <![CDATA[
+            select * from message_content 
+            where 
+            #if($timeDiff)
+            TIMESTAMPDIFF(SECOND, create_time, SYSDATE()) >:timeDiff and
+            #end
+            #if($msgStatus)
+            msg_status!=:msgStatus and 
+            #end
+            current_retry<max_retry
+    	]]>
+    </sql-query>
+</hibernate-mapping>
+```
+
+Service代码示例
+
+```java
+@Service
+@Transactional
+@Slf4j
+public class RetryMsgTask {
+  
+  @Autowired
+  private SQLOperations sqlOperations;
+  
+  /**
+   * 延时5s启动
+   * 周期10S一次
+   */
+  @Scheduled(initialDelay = 10000, fixedDelay = 20000)
+  public void retrySend() {
+    log.info("-----------------------------");
+    //查询五分钟消息状态还没有完结的消息
+    Map<String, Object> params = new HashMap<>();
+    params.put("timeDiff", MQConstants.TIME_DIFF);
+    QueryUtils.enumOrdinalCondition(params, "msgStatus", MsgStatus.CONSUMER_SUCCESS);
+    List<MessageContent> messageContents = sqlOperations.namedSqlQuery("queryNeedRetryMsg", params, MessageContent.class);
+    ......
+  }
+}
+```
+
+MessageContent可以是任意的POJO, 只要MessageContent的属性与数据库字段**对得上**, 看下面的DDL和Java Bean定义就明白**对得上**的意思了
+
+```mysql
+CREATE TABLE `message_content` (
+  `msg_id` varchar(50) NOT NULL,
+  `order_id` bigint(32) NOT NULL DEFAULT 0,
+  `product_id` int(10) NOT NULL DEFAULT 0,
+  `msg_status` int(10) NOT NULL DEFAULT 0 COMMENT '0-发送中, 1-mq的broker确认接受到消息, 2-没有对应交换机, 3-没有对应的路由, 4-消费端成功消费消息',
+  `exchange` varchar(50) NOT NULL DEFAULT '',
+  `routing_key` varchar(50) NOT NULL DEFAULT '',
+  `err_cause` varchar(1000) NOT NULL DEFAULT '',
+  `max_retry` int(10) NOT NULL DEFAULT 0,
+  `current_retry` int(10) NOT NULL DEFAULT 0,
+  `create_time` datetime NOT NULL DEFAULT NOW(),
+  `update_time` datetime NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (`msg_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+```java
+public class MessageContent {
+  private String msgId;
+  private Long orderId;
+  private Long productId;
+  private MsgStatus msgStatus;
+  private String exchange;
+  private String routingKey;
+  private String errCause;
+  private Integer maxRetry;
+  private Integer currentRetry = 0;
+  private LocalDateTime createTime;
+  private LocalDateTime updateTime;
+}
+```
+
+* order_id --> orderId
+  你不需要做任何事情, 本框架会自动帮你把数据库字段名和Bean属性名对应上。所以我们在做表设计的时候可以保留数据库字段命名的风格(下划线_分隔), 不需要为了表字段名和Java bean属性名一致而做出妥协。
+* msg_status(int) --> msgStatus(enum类型MsgStatus)
+  你也不需要做任何事情, 本框会自动帮你把int型转成对应的enum类型。其他常用的数据类型都能识别并在需要时自动转换
+
+**SQLOperations接口常用API示例**
+
+* SQL查询
+
+  ```java
+  public <T> List<T> namedSqlQuery(String queryName, Map<String, Object> params, Class<T> clazz);
   ```
-  public <T> List<T> namedQuery(String queryName, Class<T> clazz);
-  ```
 
-* ......
+  * queryName 是写在XML里面的SQL语句的名字, 全局唯一
+  * params 是SQL里面用到的参数
+  * clazz 你想要返回的List里面是什么类型的对象, 这个clazz就传什么, clazz可以是任意的POJO
 
-## 4.com.loserico.orm.dao.SQLOperations
-
-重点在这里
-
-* 支持分页的命名SQL查询，同时会自动调用queryName_count来获取总记录数 支持Velocity风格的SQL模版
+* 支持分页的SQL查询
 
   ```java
   public <T> List<T> namedSqlQuery(String queryName, Map<String, Object> params, Class<T> clazz, Page page);
@@ -105,7 +202,7 @@ JPA的entity对象的一些简单操作API
   public List<?> namedRawSqlQuery(String queryName);
   ```
 
-* 返回单个值的查询 比如type是BigDecimal.class，那么这个查询返回的是BigDecimal
+* 返回单个值的查询. 比如type是BigDecimal.class，那么这个查询返回的是BigDecimal
 
   ```java
   public <T> T namedScalarQuery(String queryName, Map<String, Object> params, Class<T> type);
@@ -129,71 +226,92 @@ JPA的entity对象的一些简单操作API
 
 # 配置
 
-只要配一个Bean就哦了
+## Maven依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.loserico</groupId>
+    <artifactId>commons-lang</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.loserico</groupId>
+    <artifactId>loser-orm</artifactId>
+</dependency>               
+```
+
+## application.yaml配置
+
+配置DataSource和JPA相关属性
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://192.168.2.101:3306/sexy-mall?useSSL=false&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false&useCompression=true&useUnicode=true&autoReconnect=true&autoReconnectForPools=true&failOverReadOnly=false
+    username: rico
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: 5000
+      idle-timeout: 30000
+      maximum-pool-size: 15
+      minimum-idle: 5
+      poolName: HikariAccountServicePool
+      data-source-properties:
+        cachePrepStmts: true
+        cacheResultSetMetadata: true
+        elideSetAutoCommits: true
+        maintainTimeStats: false
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        rewriteBatchedStatements: true
+        useLocalSessionState: true
+        useServerPrepStmts: true
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL57Dialect
+    hibernate:
+      naming:
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        ddl-auto: none
+        format_sql: true
+    show-sql: true
+```
+
+## Java Config
+
+loser-orm只需要配一个bean, 就是这么简单。
 
 ```java
-@Bean
-public JpaDao jpaDao() {
-	JpaDao jpaDao = new JpaDao();
-	jpaDao.getEnumLookupProperties().add("code");
-	jpaDao.setUseDefaultOrder(true);
-    jpaDao.getContextClasses().put("UserContext", "cn.mulberrylearning.scs.utils.UserContextHolder");
-	return jpaDao;
+@Configuration
+@Slf4j
+public class AppConfig {
+  
+    @Bean
+    public JpaDao jpaDao() {
+      return new JpaDao();
+    }
 }
 ```
 
 **解释一下:**
 
-* 通过`@PersistenceContext`自动将系统中配置好的EntityManager注入到了JpaDao里面
+* 通过`@PersistenceContext`自动将系统中自动配置的EntityManager注入到了JpaDao里面
 
   ```java
   @PersistenceContext
   protected EntityManager entityManager;
   ```
 
-* 对enum类型的支持
 
-  假设有这样一个Entity
+# 示例
 
-  ```java
-  @Entity
-  @Table(name = "SALE_ORDER", schema = "SCS")
-  @Access(AccessType.FIELD)
-  public class SaleOrder extends BaseEntity {
-  		......
-  
-      @Column(name = "CUSTOMER_ID")
-      private Long customerId;//客户ID
-  
-      @Column(name = "GENERATION_STRATEGY", nullable = false)
-      private GenerationStrategyStatus generationStrategyStatus;
-      ......
-  }
-  ```
-
-  ```java
-  public enum GenerationStrategyStatus {
-      SINGLE_NEW(0, "独立新建"),
-      RELATION_NEW(1, "关联新建");
-  
-      private int code;
-      private String desc;
-  
-      private GenerationStrategyStatus(int code, String desc) {
-          this.code = code;
-          this.desc = desc;
-      }
-  	......
-  }
-  ```
-
-  如果generationStrategyStatus在数据库里面对应表字段存的是code, 那么`jpaDao.getEnumLookupProperties().add("code");`的作用就是在int型的code和GenerationStrategyStatus之间互转. 默认支持按照enum的name, ordinal转换, 做了上述配置的话优先按code转换
-
-* 默认按照`CREATE_TIME`字段排序
-
-  `jpaDao.setUseDefaultOrder(true);`是一个开关属性, 表里没有`CREATE_TIME`字段或者不同的字段名就把这个开关关掉好了
-
-# Demo
+## Service层注入JpaDao
 
 在Service层根据需要注入JpaDao的实例到这几个核心接口类型上
 
@@ -262,60 +380,27 @@ public class PurchaseOrderListsVO {
     <sql-query name="searchPurchaseOrder">
         <![CDATA[
             SELECT
-			-- SQL分页支持, 会生成一条SQL查总记录数
+			-- SQL分页支持, 会另外生成一条SQL查总记录数
              #count()
-                so.*
+                po.*
              #end
-             from (
-                   SELECT
-                      po.ID,
-                      po.ORDER_NO,
-                      ......
-                      po.status
-                    FROM purchase_order po
-                    JOIN USER u
-                        ON po.CREATOR = u.USERNAME AND u.DELETED = 0
-                      JOIN USER_ORGANIZATION uo
-                        ON u.ID = uo.USER_ID
-                        and uo.DELETED=0
-						-- 这个表示Java代码里面传了blocParentId参数则生成的SQL里面会包含AND uo.BLOC_PARENT_ID= xxx这一段
-                           #if($blocParentId)
-                           AND uo.BLOC_PARENT_ID= :blocParentId
-                           #end
-                           #if($companyGroupIds)
-                            AND uo.COMPANY_GROUP_ID IN (:companyGroupIds)
-                           #end
-                    .......................
-                #if($supplierId)
-                AND po.SUPPLIER_ID = :supplierId
-                 #end
-                #if($skus)
-                AND s.SKU_CODE LIKE :skus
-                 #end
-                #if($status)
-                AND po.STATUS LIKE :status
-                 #end
-                   #if($auditStatus)
-                    AND po.LAST_AUDIT_STATUS = :auditStatus
-                     #end
-                 GROUP BY po.ID
-                 ORDER BY po.PURCHASE_DATE desc,po.MODIFY_TIME desc) so
+             FROM purchase_order po
+             WHERE po.SUPPLIER_ID = :supplierId
+             -- 表示Java代码里面传了blocParentId这个参数的话, 生成的SQL里面就会包含 AND uo.BLOC_PARENT_ID= :blocParentId 这一段
+             #if($blocParentId)
+             AND po.BLOC_PARENT_ID= :blocParentId
+             -- 支持elseif, else语句
+             #elseif($count > 0)
+             .........
+             #else
+              .........
+             #end
+			-- 如果传了beginDate和endDate, 则生成SQL: AND CLOSE_MONTH BETWEEN :beginDate AND :endDate
+			-- 只传   beginDate, 那么生成SQL: AND CLOSE_MONTH >= :beginDate
+			-- 只传   endDate,   那么生成SQL: AND CLOSE_MONTH <= :endDate
+			#between("CLOSE_MONTH", $beginDate, $endDate)
 		]]>
     </sql-query>
-
-    <sql-query name="getReceiveticketInfo">
-        <![CDATA[
-            SELECT
-              rt.PURCHASE_ORDER_ID    id,
-              GROUP_CONCAT(rt.RECEIVE_TICKET_DATE)    receiveTicketDates,
-               GROUP_CONCAT(rt.RECEIVE_TICKET_NO) receiveTicketNo
-            FROM receive_ticket rt
-            WHERE deleted = FALSE
-                AND rt.PURCHASE_ORDER_ID IN(:purchaseOrderId)
-            GROUP BY rt.PURCHASE_ORDER_ID
-		]]>
-    </sql-query>
-
 </hibernate-mapping>
 ```
 

@@ -7,12 +7,19 @@
 JPA的entity对象的一些简单操作API
 
 * `public <T> void persist(T entity);`
+
   插入一条记录
+
 * `public <T> void persist(List<T> entities);`
+
   插入一批记录
+
 * `public <T> T save(T entity);`
+
   插入或者更新记录, 根据主键是否有值判断
+
 * `public <T> List<T> save(List<T> entities);`
+
 * ......
 
 ## 2.CriteriaOperations
@@ -174,8 +181,11 @@ public class MessageContent {
 ```
 
 * order_id --> orderId
+
   你不需要做任何事情, 本框架会自动帮你把数据库字段名和Bean属性名对应上。所以我们在做表设计的时候可以保留数据库字段命名的风格(下划线_分隔), 不需要为了表字段名和Java bean属性名一致而做出妥协。
+
 * msg_status(int) --> msgStatus(enum类型MsgStatus)
+
   你也不需要做任何事情, 本框会自动帮你把int型转成对应的enum类型。其他常用的数据类型都能识别并在需要时自动转换
 
 **SQLOperations接口常用API示例**
@@ -343,7 +353,7 @@ public List<PurchaseOrderListsVO> searchPurchaseOrder(PurchaseOrderSearchVO purc
 }
 ```
 
-PurchaseOrderListsVO是普通的POJO或者Entity都可以, 不强求;) 查询结果的字段名(如PURCHASE_CONTRACT_NO)自动转成POJO的属性名purchaseContractNo
+PurchaseOrderListsVO是普通的POJO或者Entity都可以, 查询结果的字段名(如PURCHASE_CONTRACT_NO)自动转成POJO的属性名purchaseContractNo
 
 有数据类型不一致的也自动转换
 

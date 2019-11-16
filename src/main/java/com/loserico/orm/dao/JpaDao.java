@@ -137,12 +137,12 @@ public class JpaDao implements JPQLOperations, SQLOperations, CriteriaOperations
 		
 		Properties properties = new Properties();
 		properties.setProperty("userdirective",
-				"com.loserico.elastic.orm.directive.IfNotNull," +
-						"com.loserico.elastic.orm.directive.IfNull," +
-						"com.loserico.elastic.orm.directive.Count," +
-						"com.loserico.elastic.orm.directive.Between," +
-						"com.loserico.elastic.orm.directive.OmitForCount," +
-						"com.loserico.elastic.orm.directive.IfPresent");
+				"com.loserico.orm.directive.IfNotNull," +
+						"com.loserico.orm.directive.IfNull," +
+						"com.loserico.orm.directive.Count," +
+						"com.loserico.orm.directive.Between," +
+						"com.loserico.orm.directive.OmitForCount," +
+						"com.loserico.orm.directive.IfPresent");
 		properties.setProperty(RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS, "org.apache.velocity.runtime.log.Log4JLogChute");
 		properties.setProperty("runtime.log.logsystem.log4j.logger", "velocity");
 		//初始化运行时引擎

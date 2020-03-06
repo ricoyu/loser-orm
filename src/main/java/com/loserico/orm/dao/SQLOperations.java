@@ -303,6 +303,13 @@ public interface SQLOperations {
 	public int executeUpdate(String queryName, String paramName, Object paramValue);
 	
 	/**
+	 * 执行一条SQL语句, 什么都不返回
+	 * @param sql
+	 * @return
+	 */
+	public void execute(String sql);
+	
+	/**
 	 * 非命名的SQL查询，不带参数
 	 *
 	 * @param sql

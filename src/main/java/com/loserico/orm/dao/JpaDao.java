@@ -1841,6 +1841,22 @@ public class JpaDao implements JPQLOperations, SQLOperations, CriteriaOperations
 	}
 	
 	@Override
+	public void execute(String sql) {
+		org.hibernate.query.Query query = entityManager.createNativeQuery(sql)
+				.unwrap(org.hibernate.query.Query.class);
+		
+		if (hibernateUseQueryCache) {
+			query.setHint(HINT_QUERY_CACHE, true);
+		}
+		try {
+			query.executeUpdate();
+		} catch (Throwable e) {
+			String msg = format("Execute query[{0}] failed!", sql);
+			throw new SQLQueryException(msg, e);
+		}
+	}
+	
+	@Override
 	public void afterPropertiesSet() throws Exception {
 		for (String contextName : getContextClasses().keySet()) {
 			String className = getContextClasses().get(contextName);

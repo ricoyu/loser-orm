@@ -2,8 +2,8 @@ package com.loserico.orm.dao;
 
 import com.loserico.common.lang.utils.ArrayTypes;
 import com.loserico.common.lang.utils.ReflectionUtils;
-import com.loserico.orm.bean.OrderBean;
-import com.loserico.orm.bean.Page;
+import com.loserico.common.lang.vo.OrderBean;
+import com.loserico.common.lang.vo.Page;
 import com.loserico.orm.criteria.JPACriteriaQuery;
 import com.loserico.orm.exception.EntityOperationException;
 import com.loserico.orm.exception.JPQLException;

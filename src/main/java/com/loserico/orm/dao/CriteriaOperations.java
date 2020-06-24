@@ -1,7 +1,7 @@
 package com.loserico.orm.dao;
 
-import com.loserico.orm.bean.OrderBean;
-import com.loserico.orm.bean.Page;
+import com.loserico.common.lang.vo.OrderBean;
+import com.loserico.common.lang.vo.Page;
 import com.loserico.orm.criteria.JPACriteriaQuery;
 import com.loserico.orm.predicate.Predicate;
 
@@ -63,8 +63,8 @@ public interface CriteriaOperations {
 	 * @param includeDeleted 是否包含软删除的记录
 	 * @return
 	 */
-	public <T> T findUniqueByProperty(Class<T> entityClass, String propertyName, Object value, OrderBean... orders);
 	public <T> T findUniqueByProperty(Class<T> entityClass, String propertyName, Object value, boolean includeDeleted, OrderBean... orders);
+	public <T> T findUniqueByProperty(Class<T> entityClass, String propertyName, Object value, OrderBean... orders);
 
 	/**
 	 * 根据属性查找，返回一个对象，如果找到多个，取第一个
@@ -113,8 +113,6 @@ public interface CriteriaOperations {
 	/**
 	 * 根据多个属性查找
 	 * 
-	 * @param propertyName
-	 * @param value
 	 * @return
 	 */
 	public <T> List<T> findByProperties(Class<T> entityClass, List<Predicate> predicates, OrderBean... orders);
@@ -154,7 +152,6 @@ public interface CriteriaOperations {
 	 * @param propertyName
 	 * @param begin
 	 * @param end
-	 * @param order
 	 * @return
 	 */
 	public <T> List<T> findBetween(Class<T> entityClass, String propertyName, LocalDateTime begin, LocalDateTime end, OrderBean... orders);
@@ -168,7 +165,6 @@ public interface CriteriaOperations {
 	 * @param entityClass
 	 * @param propertyName
 	 * @param value
-	 * @param includeDeleted
 	 * @return List<T>
 	 */
 	public <T> List<T> findIn(Class<T> entityClass, String propertyName, Collection<?> value);

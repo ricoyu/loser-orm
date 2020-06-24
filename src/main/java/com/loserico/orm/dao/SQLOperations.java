@@ -1,6 +1,6 @@
 package com.loserico.orm.dao;
 
-import com.loserico.orm.bean.Page;
+import com.loserico.common.lang.vo.Page;
 
 import java.util.List;
 import java.util.Map;

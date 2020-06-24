@@ -1,8 +1,8 @@
 package com.loserico.orm.criteria;
 
-import com.loserico.orm.bean.OrderBean;
-import com.loserico.orm.bean.OrderBean.ORDER_BY;
-import com.loserico.orm.bean.Page;
+import com.loserico.common.lang.vo.OrderBean;
+import com.loserico.common.lang.vo.OrderBean.ORDER_BY;
+import com.loserico.common.lang.vo.Page;
 import com.loserico.orm.exception.JPACriteriaQueryException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;

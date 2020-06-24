@@ -1,6 +1,6 @@
 package com.loserico.orm.dao;
 
-import com.loserico.orm.bean.Page;
+import com.loserico.common.lang.vo.Page;
 
 import javax.persistence.Query;
 import java.util.List;
@@ -79,7 +79,6 @@ public interface JPQLOperations {
 	 * 根据HQL或者JPQL查询,根据参数位置绑定
 	 * 
 	 * @param jpql
-	 * @param values
 	 * @return
 	 */
 	public <T> Query createQuery(String jpql, Class<T> clazz);
